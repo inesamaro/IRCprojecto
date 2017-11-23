@@ -19,6 +19,7 @@ class Server:
     fileUsers = open("users.txt", "w")
     global arrayFiles
     arrayFiles = []
+    global user, user2
     global arrayConversas
     arrayConversas = []
 
@@ -33,20 +34,24 @@ class Server:
             if (count == 0):
                 if (data not in users):
                     data = data.split(":")
-                    arrayConversas.append([data[0], data[1]])
-                    users.append(data[0], data[1])  #adiciona o user a lista de users
-                    fileUsers.write(data[1])  #adiciona cada novo user a uma linha do users.txt
-                    dic[c] = data[0] #porque esta coneccao que e feita corresponde ao user principal, o que correu o programa
-                    fich = open(data[0]+data[1]+'.txt', 'w')
+                    user = data[0]
+                    user2 = data[1]
+                    arrayAtual = {user, user2}
+                    arrayConversas.append([user, user2])
+                    users.append(user, user2)  #adiciona o user a lista de users
+                    fileUsers.write(user2)  #adiciona cada novo user a uma linha do users.txt
+                    dic[c] = user #porque esta coneccao que e feita corresponde ao user principal, o que correu o programa
+                    fich = open(user+user2+'.txt', 'w')
                     arrayFiles.append(fich)
                 else:
                     print("O nome de utilizador que quer inserir ja existe!")
                 print("Dicionario: ")
                 print(dic);
             else:
-                for connection in self.connections:
-                    if (connection is not c): #para garantir que nao mandamos a mensagem para a propria pessoa
-                        connection.send(data)
+                for key, value in self.dic.iteritems():
+                    if (value is not user): #para garantir que nao mandamos a mensagem para a propria pessoa
+                        if value in arrayAtual:
+                            key.send(data)
             if not data:
                 print(str(a[0]) + ':' + str(a[1]) + " disconnected")
                 self.connections.remove(c);
