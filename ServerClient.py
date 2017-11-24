@@ -40,9 +40,11 @@ class Server:
                     arrayConversas.append([user, user2])
                     users.append(user, user2)  #adiciona o user a lista de users
                     fileUsers.write(user2)  #adiciona cada novo user a uma linha do users.txt
+                    fileUsers.close()
                     dic[c] = user #porque esta coneccao que e feita corresponde ao user principal, o que correu o programa
                     fich = open(user+user2+'.txt', 'w')
                     arrayFiles.append(fich)
+                    fich.close()
                 else:
                     print("O nome de utilizador que quer inserir ja existe!")
                 print("Dicionario: ")
@@ -75,7 +77,7 @@ class Client:
     string = ""
     def sendMsg(self):
         while True:
-            self.sock.send(self.string + ': '+ bytes(raw_input('')))
+            self.sock.send(self.user + ': '+ bytes(raw_input('')))
 
     def __init__(self, address, user, user2):
         self.sock.connect((address, 9999))
@@ -98,7 +100,6 @@ if (len(sys.argv) == 1):
     server.run()
 else:
     user = raw_input("Introduza o seu nome de utilizador: ")
-    fich = open('users.txt', 'r')
     #for line in fich:
     #    if user == line:
     # ve se o utilizador ja existe no ficheiro de users
@@ -106,12 +107,15 @@ else:
     opcao = raw_input('Opcao: ')
     if (opcao == '1'):
         print("Pessoas existentes: ")
-        for user in users:
-            print(user)
+        fich = open('users.txt', 'r')
+        for line in fich:
+            print(line)
+        fich.close()
         user2 = raw_input("Com quem e que deseja comecar a conversa? ")
         client = Client(sys.argv[1], user, user2)
 
     if (opcao == '2'):
+        print("ola")
         #for fich in arrayFiles:
         #    if user in fich.name:
         #        f = open(fich.name, 'r')
