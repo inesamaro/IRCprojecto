@@ -16,7 +16,6 @@ class Server:
     global ficheiros
     ficheiros = []
     global fileUsers
-    fileUsers = open("users.txt", "w")
     global arrayFiles
     arrayFiles = []
     global user, user2
@@ -27,26 +26,31 @@ class Server:
         self.sock.bind(('0.0.0.0', 9999))
         self.sock.listen(1)
 
+    def readUsersFile(self):
+        fileUsers = open("users.txt", "r")
+        users = fileUsers.readlines()
+        fileUsers.close()
+
+    def writeUsersFile(self):
+        fileUsers = open("users.txt", "w")
+        fileUsers.writelines(users)
+        fileUsers.close()
+
     def handler(self, c, a):
         count = 0
         while True:
             data = c.recv(1024)
             if (count == 0):
+                self.readUsersFile() # ve os users que existem
                 if (data not in users):
-                    data = data.split(":")
-                    user = data[0]
-                    user2 = data[1]
-                    arrayAtual = {user, user2}
-                    arrayConversas.append([user, user2])
-                    users.append(user, user2)  #adiciona o user a lista de users
-                    fileUsers.write(user2)  #adiciona cada novo user a uma linha do users.txt
-                    fileUsers.close()
-                    dic[c] = user #porque esta coneccao que e feita corresponde ao user principal, o que correu o programa
-                    fich = open(user+user2+'.txt', 'w')
-                    arrayFiles.append(fich)
-                    fich.close()
+                    users.append(data) # adiciona aos users
+                    self.writeUsersFile() # escreve no ficheiro
+                    dic[c] = data #adiciona ao dicionario
                 else:
                     print("O nome de utilizador que quer inserir ja existe!")
+
+                print("Users: ")
+                print(users)
                 print("Dicionario: ")
                 print(dic);
             else:
@@ -74,25 +78,57 @@ class Server:
 
 class Client:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    string = ""
+    name = ""
+
     def sendMsg(self):
         while True:
-            self.sock.send(self.user + ': '+ bytes(raw_input('')))
+            string = raw_input('')
+            self.sock.send(self.name + ': '+ string)
 
-    def __init__(self, address, user, user2):
-        self.sock.connect((address, 9999))
-
-        string = user + ":" + user2
-        self.sock.send(string)
-        iThread = threading.Thread(target=self.sendMsg)
-        iThread.daemon = True
-        iThread.start()
-
+    def recvMsg(self):
         while True:
             data = self.sock.recv(1024)
             print(data)
             if not data:
-                break
+                break            
+
+    def menu(self):
+        while True:        
+            print("O que deseja fazer?\n(1) Iniciar uma nova conversa\n(2) Listar as minhas conversas\n(3) Sair")
+            opcao = raw_input('Opcao: ')
+            if (opcao == '1'):
+                print("Enviar mensagem")
+                self.sendMsg()
+                # print("Pessoas existentes: ")
+                # fich = open('users.txt', 'r')
+                # for line in fich:
+                #     print(line)
+                # fich.close()
+                # user2 = raw_input("Com quem e que deseja comecar a conversa? ")
+                # client = Client(sys.argv[1], user, user2)
+            elif (opcao == '2'):
+                print("ola")
+                #for fich in arrayFiles:
+                #    if user in fich.name:
+                #        f = open(fich.name, 'r')
+                #   percorre o arrayFiles ate encontrar ficheiros com o nome da pessoa, e depois imprime as conversas
+            elif (opcao == '3'):
+                sys.exit()
+
+    def __init__(self, address, user):
+        self.sock.connect((address, 9999))
+
+        name = user
+        self.sock.send(name)
+        sendThread = threading.Thread(target=self.sendMsg)
+        sendThread.daemon = True
+        sendThread.start()
+        recvThread = threading.Thread(target=self.recvMsg)
+        recvThread.daemon = True
+        recvThread.start()
+
+        self.menu()
+
 
 if (len(sys.argv) == 1):
     global server
@@ -100,25 +136,4 @@ if (len(sys.argv) == 1):
     server.run()
 else:
     user = raw_input("Introduza o seu nome de utilizador: ")
-    #for line in fich:
-    #    if user == line:
-    # ve se o utilizador ja existe no ficheiro de users
-    print("O que deseja fazer?\n (1) Iniciar uma nova conversa\n (2) Listar as minhas conversas\n (3) Sair")
-    opcao = raw_input('Opcao: ')
-    if (opcao == '1'):
-        print("Pessoas existentes: ")
-        fich = open('users.txt', 'r')
-        for line in fich:
-            print(line)
-        fich.close()
-        user2 = raw_input("Com quem e que deseja comecar a conversa? ")
-        client = Client(sys.argv[1], user, user2)
-
-    if (opcao == '2'):
-        print("ola")
-        #for fich in arrayFiles:
-        #    if user in fich.name:
-        #        f = open(fich.name, 'r')
-        #   percorre o arrayFiles ate encontrar ficheiros com o nome da pessoa, e depois imprime as conversas
-    if (opcao == '3'):
-        sys.exit()
+    client = Client(sys.argv[1], user)
