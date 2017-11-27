@@ -1,3 +1,5 @@
+#coding = <utf-8>
+
 import socket
 import threading
 import sys
@@ -28,42 +30,43 @@ class Server:
 
     def readUsersFile(self):
         fileUsers = open("users.txt", "r")
-        users = fileUsers.readlines()
+        self.users = fileUsers.readlines()
         fileUsers.close()
 
     def writeUsersFile(self):
         fileUsers = open("users.txt", "w")
-        fileUsers.writelines(users)
+        for user in users:
+            fileUsers.write(user)
+            fileUsers.write('\n')
+        # fileUsers.writelines(users)
         fileUsers.close()
 
     def handler(self, c, a):
-        count = 0
+        self.readUsersFile() # ve os users que existem
+        if (data not in users):
+            users.append(data) # adiciona aos users
+            self.writeUsersFile() # escreve no ficheiro
+            dic[c] = data #adiciona ao dicionario
+        else:
+            print("O nome de utilizador que quer inserir ja existe!")
+
+        print("Users: ")
+        print(users)
+        print("Dicionario: ")
+        print(dic);
+
         while True:
             data = c.recv(1024)
-            if (count == 0):
-                self.readUsersFile() # ve os users que existem
-                if (data not in users):
-                    users.append(data) # adiciona aos users
-                    self.writeUsersFile() # escreve no ficheiro
-                    dic[c] = data #adiciona ao dicionario
-                else:
-                    print("O nome de utilizador que quer inserir ja existe!")
+            for key, value in dic.iteritems():
+                if (value is not user): #para garantir que nao mandamos a mensagem para a propria pessoa
+                    if value in arrayAtual:
+                        key.send(data)
 
-                print("Users: ")
-                print(users)
-                print("Dicionario: ")
-                print(dic);
-            else:
-                for key, value in self.dic.iteritems():
-                    if (value is not user): #para garantir que nao mandamos a mensagem para a propria pessoa
-                        if value in arrayAtual:
-                            key.send(data)
             if not data:
                 print(str(a[0]) + ':' + str(a[1]) + " disconnected")
                 self.connections.remove(c);
                 c.close();
                 break
-            count = count+1
 
     def run(self):
         #adiciona todas as conecoes realizadas entre clients e o servidor
@@ -78,7 +81,10 @@ class Server:
 
 class Client:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    global name
     name = ""
+    global users
+    users = []
 
     def sendMsg(self):
         while True:
@@ -90,7 +96,17 @@ class Client:
             data = self.sock.recv(1024)
             print(data)
             if not data:
-                break            
+                break       
+
+    def readUsersFile(self):
+        fileUsers = open("users.txt", "r")
+        for line in fileUsers:
+            comp = len(line)
+            line2 = line[0:comp-1]
+            users.append(line2)
+        # self.users = fileUsers.readlines()
+        fileUsers.close()
+
 
     def menu(self):
         while True:        
@@ -98,11 +114,16 @@ class Client:
             opcao = raw_input('Opcao: ')
             if (opcao == '1'):
                 print("Enviar mensagem")
+                print("Pessoas existentes: ")
+                self.readUsersFile()
+                print(users)
+                for user in users:
+                    if (user != self.name):
+                        print(user)
+                user2 = raw_input("Escolha: ")
+                # self.sock.send(INIT:USER2)
+                
                 self.sendMsg()
-                # print("Pessoas existentes: ")
-                # fich = open('users.txt', 'r')
-                # for line in fich:
-                #     print(line)
                 # fich.close()
                 # user2 = raw_input("Com quem e que deseja comecar a conversa? ")
                 # client = Client(sys.argv[1], user, user2)
@@ -118,11 +139,8 @@ class Client:
     def __init__(self, address, user):
         self.sock.connect((address, 9999))
 
-        name = user
-        self.sock.send(name)
-        sendThread = threading.Thread(target=self.sendMsg)
-        sendThread.daemon = True
-        sendThread.start()
+        self.name = user
+        self.sock.send(self.name)
         recvThread = threading.Thread(target=self.recvMsg)
         recvThread.daemon = True
         recvThread.start()
