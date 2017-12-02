@@ -147,8 +147,10 @@ class Client:
                 break
 
     def menu(self):
+
+
         while True:        
-            print("O que deseja fazer?\n(1) Iniciar uma nova conversa\n(2) Listar as minhas conversas\n(3) Sair")
+            print("O que deseja fazer?\n(1) Iniciar uma nova conversa\n(2) Listar as minhas conversas\n(3)Ver mensagens\n(4) Sair")
             opcao = raw_input('Opcao: ')
             if (opcao == '1'):
                 self.sock.send("USERS")
@@ -177,6 +179,11 @@ class Client:
                 #        f = open(fich.name, 'r')
                 #   percorre o arrayFiles ate encontrar ficheiros com o nome da pessoa, e depois imprime as conversas
             elif (opcao == '3'):
+                self.sock.send("HOLD" + user)
+                print tem
+                print nao tem
+                self.sock.recv(1024)
+            elif (opcao == '4'):
                 print("A sair...")
                 sys.exit()
 
