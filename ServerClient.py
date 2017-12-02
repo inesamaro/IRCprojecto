@@ -20,12 +20,13 @@ class Server:
     global fileUsers
     global arrayFiles
     arrayFiles = []
-    global user, user2
     global arrayConversas
     arrayConversas = []
+    conversaID = 0
 
     def __init__(self):
         self.sock.bind(('0.0.0.0', 9999))
+        # self.sock.bind(('0.0.0.0', 9998))
         self.sock.listen(1)
 
     def readUsersFile(self):
@@ -41,7 +42,27 @@ class Server:
         # fileUsers.writelines(users)
         fileUsers.close()
 
+    def receiveSendMsg(self, c, name, conversa, cid):
+        print(name + " listenig")
+        while True:
+            data = c.recv(1024)
+            for user in conversa:
+                if user != name:
+                    for c, value in dic.iteritems():
+                        if (value == user):
+                            c.send(str(cid) + "-" + name + ": " + data)
+
+    def conversa(self, conversa, cid):
+        print("Creating conversation " + str(cid))
+        for user in conversa:
+            for c, value in dic.iteritems():
+                if (value == user):
+                    connectionThread = threading.Thread(target=self.receiveSendMsg, args=(c, value, conversa, cid))
+                    connectionThread.deamon = True
+                    connectionThread.start()
+
     def handler(self, c, a):
+        data = c.recv(1024)
         self.readUsersFile() # ve os users que existem
         if (data not in users):
             users.append(data) # adiciona aos users
@@ -54,13 +75,37 @@ class Server:
         print(users)
         print("Dicionario: ")
         print(dic);
+        print("ArrayConversas: ")
+        print(arrayConversas);
 
         while True:
             data = c.recv(1024)
-            for key, value in dic.iteritems():
-                if (value is not user): #para garantir que nao mandamos a mensagem para a propria pessoa
-                    if value in arrayAtual:
-                        key.send(data)
+            print(data)
+
+            if (data == "USERS"):
+                print("Sending users to "+dic[c])
+                for user in users:
+                    if(user != dic[c]):
+                        c.send(user)
+                c.send("END")
+
+            elif ("INIT" in data):
+                msg = data.split(":")
+                user = msg[1]
+                print("Init conversation between "+dic[c]+" and "+user)
+                conversaAtual = []
+                conversaAtual.append(dic[c])
+                conversaAtual.append(user)
+                arrayConversas.append(conversaAtual)
+                self.conversaID += 1
+                conversaThread = threading.Thread(target=self.conversa, args=(conversaAtual, self.conversaID))
+                conversaThread.deamon = True
+                conversaThread.start()
+            # else:
+            #     for key, value in dic.iteritems():
+            #         if (value is not user): #para garantir que nao mandamos a mensagem para a propria pessoa
+            #             if value in arrayAtual:
+            #                 key.send(data)
 
             if not data:
                 print(str(a[0]) + ':' + str(a[1]) + " disconnected")
@@ -91,42 +136,40 @@ class Client:
             string = raw_input('')
             self.sock.send(self.name + ': '+ string)
 
-    def recvMsg(self):
+    def recvMsg(self, cid):
         while True:
             data = self.sock.recv(1024)
-            print(data)
+            array = data.split("-")
+            if(array[0] == cid):
+                data = array[1]
+                print(data)
             if not data:
-                break       
-
-    def readUsersFile(self):
-        fileUsers = open("users.txt", "r")
-        for line in fileUsers:
-            comp = len(line)
-            line2 = line[0:comp-1]
-            users.append(line2)
-        # self.users = fileUsers.readlines()
-        fileUsers.close()
-
+                break
 
     def menu(self):
         while True:        
             print("O que deseja fazer?\n(1) Iniciar uma nova conversa\n(2) Listar as minhas conversas\n(3) Sair")
             opcao = raw_input('Opcao: ')
             if (opcao == '1'):
-                print("Enviar mensagem")
-                print("Pessoas existentes: ")
-                self.readUsersFile()
-                print(users)
-                for user in users:
-                    if (user != self.name):
-                        print(user)
+                self.sock.send("USERS")
+
+                data = self.sock.recv(1024)
+                if (data == "END"):
+                    print("Nao ha utilizadores")
+                    continue
+                else:
+                    print("Pessoas existentes: ")
+                    while(data != "END"):
+                        print(data)
+                        data = self.sock.recv(1024)
+
                 user2 = raw_input("Escolha: ")
-                # self.sock.send(INIT:USER2)
-                
+                self.sock.send("INIT:"+user2)
+                conversaID = self.sock.recv(1024)
+                recvMsgThread = threading.Thread(target=self.recvMsg, args=(conversaID))
+                recvMsgThread.daemon = True
+                recvMsgThread.start()
                 self.sendMsg()
-                # fich.close()
-                # user2 = raw_input("Com quem e que deseja comecar a conversa? ")
-                # client = Client(sys.argv[1], user, user2)
             elif (opcao == '2'):
                 print("ola")
                 #for fich in arrayFiles:
@@ -134,16 +177,15 @@ class Client:
                 #        f = open(fich.name, 'r')
                 #   percorre o arrayFiles ate encontrar ficheiros com o nome da pessoa, e depois imprime as conversas
             elif (opcao == '3'):
+                print("A sair...")
                 sys.exit()
 
     def __init__(self, address, user):
         self.sock.connect((address, 9999))
+        # self.sock.connect((address, 9998))
 
         self.name = user
         self.sock.send(self.name)
-        recvThread = threading.Thread(target=self.recvMsg)
-        recvThread.daemon = True
-        recvThread.start()
 
         self.menu()
 
