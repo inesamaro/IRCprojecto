@@ -11,8 +11,10 @@ class Server:
     connections = []
     global users
     users = []
-    global dic
-    dic = {}
+    global dicOnline, dicConversas, dicHold
+    dicOnline = {}
+    dicConversas = {}
+    dicHold = {}
     global portos
     portos = []
     global ficheiros
@@ -57,9 +59,7 @@ class Server:
         for user in conversa:
             for c, value in dic.iteritems():
                 if (value == user):
-                    connectionThread = threading.Thread(target=self.receiveSendMsg, args=(c, value, conversa, cid))
-                    connectionThread.deamon = True
-                    connectionThread.start()
+                    
 
     def handler(self, c, a):
         data = c.recv(1024)
@@ -67,9 +67,13 @@ class Server:
         if (data not in users):
             users.append(data) # adiciona aos users
             self.writeUsersFile() # escreve no ficheiro
-            dic[c] = data #adiciona ao dicionario
+        
+
         else:
             print("O nome de utilizador que quer inserir ja existe!")
+
+        dicOnline[c] = data #adiciona ao dicionario
+	principal = dicOnline[c]
 
         print("Users: ")
         print(users)
@@ -82,31 +86,51 @@ class Server:
             data = c.recv(1024)
             print(data)
 
+	    if data in dicHold:
+		c.send("Tem estas mensagens por ler:")
+		for msg in dicHold[data]:
+			c.send(msg)
+		del dicHold[data]
+		c.send("END")
+
+	    else:
+		c.send("END")
+
             if (data == "USERS"):
-                print("Sending users to "+dic[c])
+                print("Sending users to "+ principal)
                 for user in users:
-                    if(user != dic[c]):
+                    if(user != principal):
                         c.send(user)
                 c.send("END")
 
             elif ("INIT" in data):
                 msg = data.split(":")
                 user = msg[1]
-                print("Init conversation between "+dic[c]+" and "+user)
-                conversaAtual = []
-                conversaAtual.append(dic[c])
-                conversaAtual.append(user)
-                arrayConversas.append(conversaAtual)
+                print("Init conversation between "+ principal+" and "+user)
                 self.conversaID += 1
-                conversaThread = threading.Thread(target=self.conversa, args=(conversaAtual, self.conversaID))
-                conversaThread.deamon = True
-                conversaThread.start()
-            # else:
-            #     for key, value in dic.iteritems():
-            #         if (value is not user): #para garantir que nao mandamos a mensagem para a propria pessoa
-            #             if value in arrayAtual:
-            #                 key.send(data)
+		self.sock.send(str(self.conversaID))
+		dicConversas[conversaID] = [principal, user]
+				
+		nomeFich = str(conversaID) +'_'+ principal + user + '.txt'
+		arrayFiles.append(nomeFich)
+		fich = open(nomeFich, 'a')
 
+		#while para rececao de mensagens e envio pelo servidor
+		while True:
+			count = 0
+			msg = c.recv(1024)
+			fich.write(msg + '\n')
+			for pessoa in dicConversas[conversaID]:
+				if pessoa is not principal:
+					for key, value in dicOnline.iterItems():
+						if value == pessoa:
+							count = 1
+							key.send(msg)
+					if count == 0:
+						if pessoa in dicHold:
+							dicHold[pessoa].append(msg)
+						else:
+							dicHold[pessoa] = [msg]
             if not data:
                 print(str(a[0]) + ':' + str(a[1]) + " disconnected")
                 self.connections.remove(c);
@@ -131,26 +155,21 @@ class Client:
     global users
     users = []
 
-    def sendMsg(self):
-        while True:
-            string = raw_input('')
-            self.sock.send(self.name + ': '+ string)
-
-    def recvMsg(self, cid):
+    def recvMsg(self):
         while True:
             data = self.sock.recv(1024)
-            array = data.split("-")
-            if(array[0] == cid):
-                data = array[1]
-                print(data)
+            print(data)
             if not data:
                 break
 
     def menu(self):
-
-
-        while True:        
-            print("O que deseja fazer?\n(1) Iniciar uma nova conversa\n(2) Listar as minhas conversas\n(3)Ver mensagens\n(4) Sair")
+        while True:
+	    data = self.sock.recv(1024)
+	    while (data != "END"):
+		print(data)
+		data = self.sock.recv(1024)
+        
+            print("O que deseja fazer?\n(1) Iniciar uma nova conversa\n(2) Listar as minhas conversas\n(3) Sair")
             opcao = raw_input('Opcao: ')
             if (opcao == '1'):
                 self.sock.send("USERS")
@@ -167,30 +186,27 @@ class Client:
 
                 user2 = raw_input("Escolha: ")
                 self.sock.send("INIT:"+user2)
+
                 conversaID = self.sock.recv(1024)
-                recvMsgThread = threading.Thread(target=self.recvMsg, args=(conversaID))
-                recvMsgThread.daemon = True
-                recvMsgThread.start()
-                self.sendMsg()
+		recvThread = threading.Thread(target=self.recvMsg)
+		recvThread.daemon = True
+		recvThread.start()
+	
+		while True:
+			msg = raw_input('')
+			self.sock.send(str(conversaID) + '- ' + self.name + ': '+ msg)
+               
             elif (opcao == '2'):
                 print("ola")
-                #for fich in arrayFiles:
-                #    if user in fich.name:
-                #        f = open(fich.name, 'r')
-                #   percorre o arrayFiles ate encontrar ficheiros com o nome da pessoa, e depois imprime as conversas
+
             elif (opcao == '3'):
-                self.sock.send("HOLD" + user)
-                print tem
-                print nao tem
-                self.sock.recv(1024)
-            elif (opcao == '4'):
                 print("A sair...")
                 sys.exit()
 
     def __init__(self, address, user):
         self.sock.connect((address, 9999))
         # self.sock.connect((address, 9998))
-
+	
         self.name = user
         self.sock.send(self.name)
 
